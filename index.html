@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>חישגד כדורסל</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+  :root { --bg:#24093f; --panel:#341260; --line:#4d2483; --text:#fff; --muted:#c9b8e8; --yellow:#ffd400; --green:#5fd35a; --red:#ff6b6b; }
+  * { box-sizing:border-box }
+  body { margin:0; background:radial-gradient(circle at top,#4a1a80,var(--bg) 60%); background-color:var(--bg); color:var(--text); font-family:Rubik,Arial,sans-serif; min-height:100vh }
+  main { max-width:840px; margin:0 auto; padding:20px 16px 40px }
+  h1 { margin:0 0 4px; font-weight:800; color:var(--yellow); font-size:clamp(26px,5vw,40px) }
+  .sub { color:var(--muted); margin:0 0 18px }
+  #card { position:relative; width:100%; aspect-ratio:800/547; container-type:inline-size; border-radius:10px; overflow:hidden; box-shadow:0 12px 40px #0008; user-select:none }
+  #art { width:100%; height:100%; display:block }
+  #grid, #foil { position:absolute; left:40.5%; top:43.15%; width:44.6%; height:49.7% }
+  #grid { direction:ltr; display:grid; grid-template:repeat(3,1fr)/repeat(4,1fr); gap:.35cqw; background:#76bd37; border-radius:3cqw; overflow:hidden }
+  #grid div { display:flex; align-items:center; justify-content:center; background:#fff8dc; color:#3a1a00; font-weight:800; font-size:3.6cqw }
+  #grid div.prize { font-size:2.7cqw; color:#c0141b }
+  #grid div.win { background:#c9f7b8; box-shadow:inset 0 0 0 .5cqw var(--green) }
+  #foil { touch-action:none; cursor:none }
+  #coin { position:fixed; z-index:40; pointer-events:none; translate:-50% -50%; filter:drop-shadow(0 6px 8px #0009); transition:rotate .1s, scale .1s }
+  #coin.down { rotate:-25deg; scale:.92 }
+  #coins { position:fixed; top:50%; right:16px; translate:0 -50%; z-index:30; display:flex; flex-direction:column; gap:4px; padding:12px; background:var(--panel); border-radius:16px; box-shadow:0 8px 30px #0006 }
+  #coins b { color:var(--muted); font-size:13px; font-weight:400; text-align:center; margin-bottom:4px }
+  #coins button { display:flex; align-items:center; gap:10px; padding:6px 6px 6px 14px; border-radius:12px; background:transparent; font-size:14px }
+  #coins button.on { background:var(--line); box-shadow:inset 0 0 0 2px var(--yellow) }
+  #coins img { width:40px; height:40px }
+  @media (max-width:1180px) { #coins { position:static; translate:none; flex-flow:row wrap; justify-content:center; margin-bottom:14px } #coins b { width:100% } }
+  #msg { min-height:1.6em; margin:14px 0; font-size:22px; font-weight:600; text-align:center }
+  #msg.win { color:var(--green) } #msg.lose { color:var(--muted) }
+  .buttons { display:flex; flex-wrap:wrap; gap:10px; justify-content:center }
+  button { font:inherit; font-weight:600; border:0; border-radius:999px; padding:12px 22px; cursor:pointer; background:var(--line); color:var(--text) }
+  button.main { background:var(--yellow); color:#2a0a4a; font-size:18px }
+  button:hover { filter:brightness(1.12) }
+  .rules { color:var(--muted); font-size:14px; text-align:center; margin:12px 0 26px }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:18px }
+  .tile { background:var(--panel); border-radius:12px; padding:12px }
+  .tile b { display:block; font-size:22px; margin-top:4px; font-variant-numeric:tabular-nums }
+  .tile span { color:var(--muted); font-size:13px }
+  .pos { color:var(--green) } .neg { color:var(--red) }
+  .tablewrap { overflow-x:auto; background:var(--panel); border-radius:12px }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:15px }
+  th, td { padding:9px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap }
+  th { color:var(--muted); font-weight:400; font-size:13px }
+  tr.total td { font-weight:600; border-bottom:0 }
+  footer { color:var(--muted); font-size:12px; text-align:center; margin-top:22px; line-height:1.6 }
+
+  #grid div.win { animation:glow .45s ease-in-out infinite alternate }
+  #flash { position:fixed; inset:0; z-index:60; background:#fff; opacity:0; pointer-events:none }
+  #win { position:fixed; inset:0; z-index:50; display:grid; place-items:center; overflow:hidden; cursor:pointer; background:radial-gradient(circle,#ff9d0066,#1a0533f0 70%); animation:fadein .25s }
+  #win[hidden] { display:none }
+  #win.t3 { animation:fadein .25s, rainbow 1.2s linear infinite }
+  #win .rays { position:absolute; left:50%; top:50%; width:250vmax; height:250vmax; translate:-50% -50%; background:repeating-conic-gradient(#ffd40055 0 9deg,transparent 9deg 18deg); -webkit-mask:radial-gradient(circle,#000 8%,transparent 40%); mask:radial-gradient(circle,#000 8%,transparent 40%); animation:spin 9s linear infinite }
+  #win.t2 .rays, #win.t3 .rays { animation-duration:3s }
+  #win .box { position:relative; text-align:center; animation:pop .7s cubic-bezier(.2,1.8,.4,1) }
+  #winLabel { font-size:clamp(36px,8vw,76px); font-weight:800; text-shadow:0 0 18px #ff00c8,0 0 42px #ff00c8; animation:wobble .4s ease-in-out infinite alternate }
+  #amount { direction:ltr; font-size:clamp(72px,20vw,210px); font-weight:800; line-height:1.05; font-variant-numeric:tabular-nums; background:linear-gradient(90deg,#ffd400,#fff7b0,#ff9d00,#ffd400) 0/200%; -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 0 26px #ffb300); animation:shimmer .9s linear infinite }
+  #win small { display:block; color:var(--muted); margin-top:18px; font-size:14px }
+  @keyframes glow { to { background:#fff36b; box-shadow:inset 0 0 0 .5cqw #fff,0 0 2.5cqw #ffd400 } }
+  @keyframes spin { to { rotate:360deg } }
+  @keyframes pop { from { scale:0; rotate:-30deg } }
+  @keyframes wobble { from { rotate:-4deg } to { rotate:4deg; scale:1.1 } }
+  @keyframes shimmer { to { background-position:-200% 0 } }
+  @keyframes fadein { from { opacity:0 } }
+  @keyframes rainbow { to { filter:hue-rotate(360deg) } }
+
+  #arrow { align-self:center; width:64px; height:44px; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-3 -3 70 50'%3E%3Cpath d='M0 22 L26 0 V13 H64 V31 H26 V44 Z' fill='%23ff2bd6' stroke='%23fff' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; filter:drop-shadow(0 0 6px #ff2bd6) drop-shadow(0 0 16px #ff2bd6); animation:nudge .45s ease-in-out infinite alternate }
+  @keyframes nudge { to { translate:-16px } }
+  #buy.beg { animation:beg .9s ease-in-out infinite }
+  @keyframes beg { 50% { scale:1.1; box-shadow:0 0 0 6px #ffd40055,0 0 34px #ffd400 } }
+  #trash { position:absolute; inset:0; z-index:5; pointer-events:none; background:#14002899 }
+  #trashCoin { position:absolute; top:0; left:50%; width:7cqw; margin-left:-3.5cqw; opacity:0 }
+  #bin { position:absolute; left:50%; bottom:4%; width:16cqw; translate:-50%; overflow:visible; transform-origin:50% 100% }
+  #lid { transform-box:fill-box; transform-origin:0% 100% }
+</style>
+</head>
+<body>
+<main>
+  <h1>חישגד כדורסל 🏀</h1>
+  <p class="sub">סימולטור גירוד · 10 ₪ לכרטיס · ניתן לזכות עד 100,000 ₪</p>
+
+  <aside id="coins"><b>גרדו עם מטבע</b></aside>
+  <div id="card">
+    <img id="art" src="img/119.jpg" alt="כרטיס חישגד כדורסל">
+    <div id="grid"></div>
+    <canvas id="foil" width="714" height="544"></canvas>
+    <div id="trash" hidden>
+      <img id="trashCoin" src="img/coins/10.png" alt="">
+      <svg id="bin" viewBox="0 0 100 120">
+        <defs><linearGradient id="metal" x1="0" x2="1"><stop offset="0" stop-color="#6b7480"/><stop offset=".45" stop-color="#eef1f5"/><stop offset="1" stop-color="#565e68"/></linearGradient></defs>
+        <path d="M12 30 H88 L80 116 H20 Z" fill="url(#metal)" stroke="#3a4048" stroke-width="2"/>
+        <path d="M33 42 L36 104 M50 42 V104 M67 42 L64 104" stroke="#3a4048" stroke-width="4" stroke-linecap="round" opacity=".5"/>
+        <g id="lid"><rect x="4" y="18" width="92" height="12" rx="4" fill="url(#metal)" stroke="#3a4048" stroke-width="2"/><path d="M38 18 V10 H62 V18" fill="none" stroke="#3a4048" stroke-width="5"/></g>
+      </svg>
+    </div>
+  </div>
+
+  <div id="msg">קנו כרטיס והתחילו לגרד</div>
+  <div class="buttons">
+    <span id="arrow" hidden></span>
+    <button class="main" id="buy">קנה כרטיס · 10 ₪</button>
+    <button id="reveal">גרד הכל</button>
+    <button onclick="location.reload()">איפוס</button>
+  </div>
+  <p class="rules">אם במשחק כלשהו ניקוד הקבוצה שלכם גבוה מניקוד הקבוצה היריבה, זכיתם בפרס הרשום בשורת הפרס.</p>
+
+  <div class="tiles" id="tiles"></div>
+  <div class="tablewrap"><table id="table"></table></div>
+
+  <footer>
+    סימולציה בלבד · נתוני הסדרה (2,000,000 כרטיסים) מאתר מפעל הפיס · הכרטיסים נשלפים מהסדרה ללא החזרה<br>
+    הימורים עלולים להיות ממכרים. מוקד הרווחה למידע וסיוע: 118 (חינם, 24/7)
+  </footer>
+</main>
+<div id="win" hidden><div class="rays"></div><div class="box"><div id="winLabel"></div><div id="amount"></div><small>לחצו להמשך</small></div></div>
+<div id="flash"></div>
+<img id="coin" hidden alt="">
+
+<script>
+const PRICE = 10, SERIES = 2000000;
+const PRIZES = [[10,224000],[20,220000],[40,50000],[100,20000],[200,4000],[500,120],[1000,100],[100000,2]];
+const V = PRIZES.map(p => p[0]);
+const EV = PRIZES.reduce((s, [p, c]) => s + p * c, 0) / SERIES;
+const WINNERS = PRIZES.reduce((s, p) => s + p[1], 0);
+
+let remaining, left, hits, st;
+function newSeries() { remaining = PRIZES.map(p => p[1]); left = SERIES; }
+newSeries(); hits = PRIZES.map(() => 0); st = { n: 0, spent: 0, won: 0, best: 0 };
+
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+const fmt = n => n.toLocaleString('he-IL');
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// draw one ticket from the finite series; returns prize index or -1 (no win)
+function draw() {
+  if (!left) newSeries();
+  let r = rnd(left--);
+  for (let i = 0; i < PRIZES.length; i++) { if (r < remaining[i]) { remaining[i]--; return i; } r -= remaining[i]; }
+  return -1;
+}
+
+// all ways to split a prize across up to 4 winning games (100,000 is always a single game)
+function splits(p, max = 4, from = 0) {
+  if (!p) return [[]];
+  if (!max) return [];
+  const out = [];
+  for (let i = from; i < V.length - 1; i++) if (V[i] <= p) for (const s of splits(p - V[i], max - 1, i)) out.push([V[i], ...s]);
+  return out;
+}
+const SPLITS = V.map(p => p === 100000 ? [[p]] : splits(p));
+
+// two different scores in 40..99, returned as [high, low]
+const scores = () => { const a = 40 + rnd(60); let b = 40 + rnd(59); if (b >= a) b++; return [Math.max(a, b), Math.min(a, b)]; };
+
+function makeCard(i) {
+  const games = [0,1,2,3].map(() => { const [hi, lo] = scores(); return { you: lo, opp: hi, prize: pick(V) }; });
+  if (i >= 0) {
+    const parts = pick(SPLITS[i]);
+    shuffle([0,1,2,3]).slice(0, parts.length).forEach((g, k) => { const [hi, lo] = scores(); games[g] = { you: hi, opp: lo, prize: parts[k] }; });
+  }
+  return { i, games, total: i < 0 ? 0 : V[i] };
+}
+
+function record(i) {
+  if (i < 0) return;
+  hits[i]++; st.won += V[i]; st.best = Math.max(st.best, V[i]);
+}
+
+// --- scratching ---
+const art = document.getElementById('art'), grid = document.getElementById('grid'), cv = document.getElementById('foil'), ctx = cv.getContext('2d');
+const msg = document.getElementById('msg');
+const GX = 36, GY = 27, R = 34;
+let cov = new Uint8Array(GX * GY), cur = null, settled = true, scratching = false, last;
+
+function coat() {
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(art, 324, 236, 357, 272, 0, 0, cv.width, cv.height);
+  cov = new Uint8Array(GX * GY);
+}
+
+function renderGrid(card) {
+  const cells = [];
+  for (const g of card.games) cells.push(g.you);
+  for (const g of card.games) cells.push(g.opp);
+  for (const g of card.games) cells.push(fmt(g.prize) + '₪');
+  grid.innerHTML = cells.map((c, k) => `<div class="${k >= 8 ? 'prize' : ''}">${c}</div>`).join('');
+}
+
+function scratch(a, b) {
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.lineWidth = R * 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+  const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (R / 2)) || 1;
+  for (let k = 0; k <= n; k++) {
+    const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n;
+    for (let gy = 0; gy < GY; gy++) for (let gx = 0; gx < GX; gx++)
+      if (Math.hypot((gx + .5) * cv.width / GX - x, (gy + .5) * cv.height / GY - y) < R) cov[gy * GX + gx] = 1;
+  }
+}
+
+// --- sound (all synthesized, no audio files) ---
+let ac, nb, scr;
+const audio = () => { ac ||= new AudioContext(); if (ac.state === 'suspended') ac.resume(); return ac; };
+// grainy noise: white noise with random amplitude every 80 samples, sounds like coating flaking off
+const noiseBuf = () => {
+  if (!nb) { const a = audio(); nb = a.createBuffer(1, a.sampleRate, a.sampleRate); const d = nb.getChannelData(0); let amp = 1;
+    for (let i = 0; i < d.length; i++) { if (i % 80 === 0) amp = Math.random() ** 2; d[i] = (Math.random() * 2 - 1) * amp; } }
+  return nb;
+};
+function scratchSound(speed) {
+  const a = audio();
+  if (!scr) {
+    const src = a.createBufferSource(), filter = a.createBiquadFilter(), gain = a.createGain();
+    src.buffer = noiseBuf(); src.loop = true; filter.type = 'bandpass'; filter.Q.value = .7; gain.gain.value = 0;
+    src.connect(filter).connect(gain).connect(a.destination); src.start();
+    scr = { filter, gain };
+  }
+  const t = a.currentTime;
+  scr.gain.gain.setTargetAtTime(Math.min(.7, speed * .15), t, .01);
+  scr.filter.frequency.setTargetAtTime(1200 + Math.min(speed, 8) * 500, t, .02);
+  clearTimeout(scr.quiet);
+  scr.quiet = setTimeout(() => scr.gain.gain.setTargetAtTime(0, a.currentTime, .03), 50);
+}
+function tone(f, t, d, type = 'square', v = .07) {
+  const a = audio(), o = a.createOscillator(), g = a.createGain(), s = a.currentTime + t;
+  o.type = type; o.frequency.value = f;
+  g.gain.setValueAtTime(v, s); g.gain.exponentialRampToValueAtTime(.0001, s + d);
+  o.connect(g).connect(a.destination); o.start(s); o.stop(s + d);
+}
+function boom() {
+  const a = audio(), s = a.createBufferSource(), g = a.createGain();
+  s.buffer = noiseBuf(); g.gain.setValueAtTime(.6, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + .5);
+  s.connect(g).connect(a.destination); s.start(); s.stop(a.currentTime + .5);
+}
+const coin = () => { tone(988, 0, .08, 'square', .05); tone(1319, .07, .25, 'square', .05); };
+const fanfare = tier => [523, 659, 784, 1047, 1319, 1568, 2093].slice(0, 4 + tier).forEach((f, k) => tone(f, k * .08, .3));
+const chord = tier => [523, 659, 784, 1047].forEach(f => tone(f * (tier > 1 ? 2 : 1), 0, 1.6, 'sawtooth', .035));
+const sad = () => [392, 370, 349, 294].forEach((f, k) => tone(f, k * .22, k === 3 ? .7 : .22, 'triangle', .14));
+
+// --- win celebration ---
+const party = window.confetti || (() => {});
+const COLORS = ['#ffd400', '#ff3d7f', '#5fd35a', '#3db5ff', '#ffffff', '#a24bff'];
+const COINS = window.confetti?.shapeFromText ? ['🪙', '💰', '💸', '💎'].map(text => confetti.shapeFromText({ text, scalar: 3 })) : undefined;
+const winEl = document.getElementById('win'), amountEl = document.getElementById('amount'), flash = document.getElementById('flash'), mainEl = document.querySelector('main'), cardEl = document.getElementById('card');
+const fx = []; let winGen = 0;
+
+function stopFx() { winGen++; fx.splice(0).forEach(clearTimeout); winEl.hidden = true; party.reset?.(); }
+
+// --- lose: 10 ₪ coin falls into a trash bin, arrow begs you to buy again ---
+const trashEl = document.getElementById('trash'), lid = document.getElementById('lid'), bin = document.getElementById('bin'), trashCoin = document.getElementById('trashCoin');
+const arrowEl = document.getElementById('arrow'), buyBtn = document.getElementById('buy');
+let trashGen = 0;
+const play = (el, kf, opts) => el.animate(kf, opts).finished.catch(() => {});
+function stopTrash() { trashGen++; trashEl.getAnimations({ subtree: true }).forEach(a => a.cancel()); trashEl.hidden = true; }
+async function loseAnim() {
+  stopTrash();
+  const gen = trashGen, ok = () => gen === trashGen;
+  trashEl.hidden = false;
+  trashEl.animate([{ opacity: 0 }, { opacity: 1 }], 250);
+  await play(bin, [{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 350, easing: 'cubic-bezier(.2,1.6,.4,1)' }); if (!ok()) return;
+  await play(lid, [{ transform: 'rotate(0)' }, { transform: 'rotate(-110deg)' }], { duration: 250, easing: 'ease-out', fill: 'forwards' }); if (!ok()) return;
+  await play(trashCoin, [{ transform: 'translateY(1cqw) rotate(0)', opacity: 0 }, { opacity: 1, offset: .12 }, { transform: 'translateY(54cqw) rotate(600deg)', opacity: 1 }], { duration: 750, easing: 'cubic-bezier(.55,0,1,.45)', fill: 'forwards' }); if (!ok()) return;
+  tone(110, 0, .25, 'square', .12); tone(70, .02, .3, 'sine', .3);
+  lid.animate([{ transform: 'rotate(-110deg)' }, { transform: 'rotate(0)' }], { duration: 180, easing: 'ease-in', fill: 'forwards' });
+  await play(bin, [{ transform: 'rotate(0)' }, { transform: 'rotate(-8deg)' }, { transform: 'rotate(6deg)' }, { transform: 'rotate(-3deg)' }, { transform: 'rotate(0)' }], { duration: 500 }); if (!ok()) return;
+  await play(trashEl, [{ opacity: 1 }, { opacity: 0 }], { duration: 600, delay: 900, fill: 'forwards' }); if (!ok()) return;
+  stopTrash();
+}
+winEl.onclick = stopFx;
+
+function shake(el, px, iterations) {
+  el.animate(Array.from({ length: 12 }, (_, k) => ({ transform: k === 11 ? 'none' : `translate(${(Math.random() - .5) * px}px,${(Math.random() - .5) * px}px) rotate(${(Math.random() - .5) * px / 8}deg)` })), { duration: 500, iterations });
+}
+
+function celebrate(total) {
+  const tier = total >= 100000 ? 3 : total >= 1000 ? 2 : total >= 100 ? 1 : 0, dur = [900, 1600, 2800, 5000][tier], gen = ++winGen;
+  winEl.className = 't' + tier; winEl.hidden = false;
+  document.getElementById('winLabel').textContent = ['זכיתם!', 'וואו! זכיתם!', 'זכייה ענקית!!!', '💥 ג׳קפוט!!! 💥'][tier];
+  fanfare(tier);
+  flash.animate([{ opacity: .9 }, { opacity: 0 }], 400 + tier * 200);
+  if (tier) shake(mainEl, 8 * tier, tier * 2);
+
+  const t0 = performance.now(); let tick = 0;
+  requestAnimationFrame(function step(t) {
+    if (gen !== winGen) return;
+    const k = Math.min(1, (t - t0) / dur);
+    amountEl.textContent = fmt(Math.round(total * (1 - (1 - k) ** 3))) + ' ₪';
+    if (k < 1) { if (t - tick > 90) { coin(); tick = t; } requestAnimationFrame(step); return; }
+    chord(tier); boom(); flash.animate([{ opacity: .7 }, { opacity: 0 }], 300);
+    amountEl.animate([{ scale: 1.5 }, { scale: 1 }], { duration: 400, easing: 'cubic-bezier(.2,1.8,.4,1)' });
+    party({ particleCount: 150 + tier * 80, spread: 360, startVelocity: 45 + tier * 10, origin: { y: .45 }, colors: COLORS });
+  });
+
+  const side = (x, angle) => party({ particleCount: 80 + tier * 50, angle, spread: 60 + tier * 15, startVelocity: 55 + tier * 8, origin: { x, y: .8 }, colors: COLORS });
+  side(0, 60); side(1, 120);
+  if (tier >= 1) fx.push(setInterval(() => party({ shapes: COINS, scalar: 3, particleCount: 2 + tier * 2, spread: 160, startVelocity: 8, gravity: .9, ticks: 320, flat: true, origin: { x: Math.random(), y: -.1 } }), 180));
+  if (tier >= 2) fx.push(setInterval(() => { party({ particleCount: 120, spread: 360, startVelocity: 35, ticks: 120, origin: { x: .1 + Math.random() * .8, y: .1 + Math.random() * .4 }, colors: COLORS }); boom(); }, 480 - tier * 120));
+  if (tier) fx.push(setInterval(() => { side(0, 60); side(1, 120); }, 900));
+  fx.push(setTimeout(stopFx, dur + 2200 + tier * 2000));
+}
+
+const pt = e => { const b = cv.getBoundingClientRect(); return [(e.clientX - b.left) * cv.width / b.width, (e.clientY - b.top) * cv.height / b.height]; };
+let lastT;
+cv.onpointerdown = e => { if (settled) return; scratching = true; cv.setPointerCapture(e.pointerId); last = pt(e); lastT = performance.now(); scratch(last, last); scratchSound(2); };
+cv.onpointermove = e => {
+  if (!scratching) return;
+  const p = pt(e), now = performance.now();
+  scratchSound(Math.hypot(p[0] - last[0], p[1] - last[1]) / Math.max(1, now - lastT));
+  scratch(last, p); last = p; lastT = now;
+};
+cv.onpointerup = cv.onpointercancel = () => { if (!scratching) return; scratching = false; scratchSound(0); if (!settled && cov.reduce((a, b) => a + b) / cov.length > .6) settle(); };
+
+function settle() {
+  if (settled) return;
+  settled = true;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  cur.games.forEach((g, k) => { if (g.you > g.opp) [k, k + 4, k + 8].forEach(c => grid.children[c].classList.add('win')); });
+  record(cur.i);
+  msg.className = cur.total ? 'win' : 'lose';
+  msg.textContent = cur.total ? `🎉 זכיתם ב־${fmt(cur.total)} ₪!` : 'לא זכיתם הפעם 😕';
+  if (cur.total) celebrate(cur.total); else { sad(); shake(cardEl, 6, 1); loseAnim(); arrowEl.hidden = false; buyBtn.classList.add('beg'); }
+  render();
+}
+
+async function buy() {
+  stopFx(); stopTrash();
+  arrowEl.hidden = true; buyBtn.classList.remove('beg');
+  settle();
+  st.n++; st.spent += PRICE;
+  cur = makeCard(draw()); settled = false;
+  msg.className = ''; msg.textContent = 'גרדו את המשטח הצהוב...';
+  render();
+  const card = cur;
+  art.src = `img/${pick([119, 120, 121, 122])}.jpg`;
+  await art.decode();
+  if (card !== cur) return;
+  coat(); renderGrid(card);
+  cardEl.animate([{ transform: 'translateY(-40px) rotate(-4deg) scale(.85)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 450, easing: 'cubic-bezier(.2,1.5,.4,1)' });
+}
+
+// --- stats ---
+function render() {
+  const net = st.won - st.spent;
+  const tiles = [
+    ['כרטיסים שנקנו', fmt(st.n)],
+    ['הוצאה', fmt(st.spent) + ' ₪'],
+    ['זכיות', fmt(st.won) + ' ₪'],
+    ['רווח / הפסד', `<span class="${net >= 0 ? 'pos' : 'neg'}">${net > 0 ? '+' : ''}${fmt(net)} ₪</span>`],
+    ['החזר בפועל', st.spent ? Math.round(st.won / st.spent * 100) + '%' : '—'],
+    ['החזר צפוי', Math.round(EV / PRICE * 100) + '%'],
+    ['הזכייה הגדולה', st.best ? fmt(st.best) + ' ₪' : '—'],
+    ['נותרו בסדרה', fmt(left)],
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(([k, v]) => `<div class="tile"><span>${k}</span><b>${v}</b></div>`).join('');
+
+  const totalHits = hits.reduce((a, b) => a + b, 0);
+  const pct = h => st.n ? (h / st.n * 100).toFixed(2) + '%' : '—';
+  const odds = c => '1 : ' + fmt(+(SERIES / c).toFixed(2));
+  const rows = PRIZES.map(([p, c], i) => `<tr><td>${fmt(p)} ₪</td><td>${fmt(c)}</td><td>${odds(c)}</td><td>${fmt(hits[i])}</td><td>${pct(hits[i])}</td><td>${fmt(remaining[i])}</td></tr>`).reverse();
+  rows.push(`<tr><td>ללא זכייה</td><td>${fmt(SERIES - WINNERS)}</td><td>${odds(SERIES - WINNERS)}</td><td>${fmt(st.n - totalHits)}</td><td>${pct(st.n - totalHits)}</td><td>${fmt(left - remaining.reduce((a, b) => a + b, 0))}</td></tr>`);
+  rows.push(`<tr class="total"><td>פרס כלשהו</td><td>${fmt(WINNERS)}</td><td>${odds(WINNERS)}</td><td>${fmt(totalHits)}</td><td>${pct(totalHits)}</td><td>${fmt(remaining.reduce((a, b) => a + b, 0))}</td></tr>`);
+  document.getElementById('table').innerHTML = `<tr><th>פרס</th><th>זוכים בסדרה</th><th>סיכוי</th><th>זכיות שלך</th><th>% מהכרטיסים שלך</th><th>נותרו בסדרה</th></tr>` + rows.join('');
+}
+
+document.getElementById('buy').onclick = buy;
+document.getElementById('reveal').onclick = settle;
+art.decode().then(coat);
+
+// --- coin cursor: real Israeli coins (Bank of Israel images via Wikimedia Commons), sized by real diameter (mm) ---
+const MONEY = [
+  { name: '10 אגורות', src: 'img/coins/10ag.png', mm: 22 },
+  { name: '½ שקל', src: 'img/coins/half.png', mm: 18 },
+  { name: 'שקל', src: 'img/coins/1.png', mm: 18 },
+  { name: '2 שקלים', src: 'img/coins/2.png', mm: 21.6 },
+  { name: '5 שקלים', src: 'img/coins/5.png', mm: 24 },
+  { name: '10 שקלים', src: 'img/coins/10.png', mm: 23 },
+];
+const coinEl = document.getElementById('coin'), coinsEl = document.getElementById('coins');
+coinsEl.insertAdjacentHTML('beforeend', MONEY.map((c, k) => `<button data-k="${k}"><img src="${c.src}" alt=""><span>${c.name}</span></button>`).join(''));
+function useCoin(k) {
+  coinEl.src = MONEY[k].src;
+  coinEl.style.width = MONEY[k].mm * 3.8 + 'px';
+  coinsEl.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i === k));
+}
+coinsEl.onclick = e => { const b = e.target.closest('button'); if (b) useCoin(+b.dataset.k); };
+useCoin(5);
+const moveCoin = e => { coinEl.hidden = false; coinEl.style.left = e.clientX + 'px'; coinEl.style.top = e.clientY + 'px'; };
+cv.addEventListener('pointerenter', moveCoin);
+cv.addEventListener('pointermove', moveCoin);
+cv.addEventListener('pointerleave', () => coinEl.hidden = true);
+cv.addEventListener('pointerdown', () => coinEl.classList.add('down'));
+cv.addEventListener('pointerup', () => coinEl.classList.remove('down'));
+render();
+
+// self-check: open index.html#test — drains a full series and checks every split sums to its prize
+if (location.hash === '#test') {
+  for (const [k, ss] of SPLITS.entries()) console.assert(ss.length && ss.every(s => s.length <= 4 && s.reduce((a, b) => a + b) === V[k]), 'split', V[k]);
+  const got = PRIZES.map(() => 0); let none = 0;
+  for (let k = 0; k < SERIES; k++) { const i = draw(); i < 0 ? none++ : got[i]++; }
+  console.assert(got.every((g, i) => g === PRIZES[i][1]) && none === SERIES - WINNERS, 'series', got, none);
+  for (let k = 0; k < 2000; k++) {
+    const c = makeCard(rnd(9) - 1);
+    console.assert(c.games.reduce((s, g) => s + (g.you > g.opp ? g.prize : 0), 0) === c.total, 'card', c);
+    console.assert(c.games.every(g => g.you !== g.opp && Math.max(g.you, g.opp) <= 99), 'scores', c);
+  }
+  newSeries(); render();
+  console.log('self-check done');
+}
+</script>
+</body>
+</html>
